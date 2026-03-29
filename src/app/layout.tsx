@@ -8,9 +8,12 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "Small Stories",
-  description: "Create personalized stories for your child",
+  title: "My Little Story",
+  description: "Personalized stories, just for your child",
 };
+
+// Inline script to prevent flash of wrong theme
+const themeScript = `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(t==null&&window.matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark")}catch(e){}})()`;
 
 export default function RootLayout({
   children,
@@ -18,7 +21,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${nunito.variable} h-full antialiased`}>
+    <html lang="en" className={`${nunito.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full flex flex-col font-[family-name:var(--font-nunito)]">
         {children}
       </body>

@@ -70,7 +70,10 @@ SAFETY RULES (non-negotiable):
 
 LENGTH: ${getLengthInstruction(length)}
 
-Write ONLY the story text. Do not include a title, headers, meta-commentary, or word count.`;
+OUTPUT FORMAT:
+- Write ONLY the story text — no title, no heading, no "# ...", no headers, no meta-commentary, no word count
+- Start directly with the first sentence of the story
+- Do not wrap the story in markdown formatting`;
 }
 
 export function buildUserMessage(data: StoryFormData): string {

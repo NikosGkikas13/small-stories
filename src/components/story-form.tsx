@@ -11,6 +11,18 @@ interface StoryFormProps {
 
 const AGE_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
+const THEME_SUGGESTIONS = [
+  "kindness",
+  "sharing",
+  "being brave",
+  "friendship",
+  "honesty",
+  "trying new things",
+];
+
+const inputClass =
+  "w-full rounded-xl border-2 border-[var(--color-input-border)] bg-[var(--color-input-bg)] px-4 py-3 text-[var(--color-foreground)] placeholder-[var(--color-muted)] focus:border-[var(--color-primary)] focus:bg-[var(--color-input-focus-bg)] focus:ring-2 focus:ring-violet-200/30 focus:outline-none transition-all disabled:opacity-50";
+
 export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
   const [childName, setChildName] = useState("");
   const [age, setAge] = useState<number | null>(null);
@@ -48,11 +60,15 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full space-y-6">
+    <form
+      onSubmit={handleSubmit}
+      className="w-full space-y-5 rounded-3xl bg-[var(--color-surface)] backdrop-blur-sm border border-[var(--color-surface-border)] shadow-lg p-6 sm:p-8"
+      style={{ boxShadow: `0 10px 25px -5px var(--color-shadow)` }}
+    >
       {/* Child's Name */}
       <div>
-        <label htmlFor="childName" className="block text-sm font-semibold text-gray-700 mb-1">
-          Child&apos;s Name *
+        <label htmlFor="childName" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
+          Child&apos;s Name <span className="text-amber-500">*</span>
         </label>
         <input
           id="childName"
@@ -61,55 +77,71 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
           onChange={(e) => setChildName(e.target.value)}
           placeholder="e.g., Emma"
           disabled={isGenerating}
-          className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 focus:outline-none transition disabled:opacity-50"
+          className={inputClass}
         />
-        {errors.childName && <p className="mt-1 text-sm text-red-600">{errors.childName}</p>}
+        {errors.childName && <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.childName}</p>}
       </div>
 
       {/* Age */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Age *</label>
-        <div className="flex flex-wrap gap-2">
+        <label htmlFor="age" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
+          Age <span className="text-amber-500">*</span>
+        </label>
+        <select
+          id="age"
+          value={age ?? ""}
+          onChange={(e) => setAge(e.target.value ? Number(e.target.value) : null)}
+          disabled={isGenerating}
+          className={`${inputClass} font-bold appearance-none cursor-pointer ${
+            age ? "" : "text-[var(--color-muted)]"
+          }`}
+          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237c3aed' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center' }}
+        >
+          <option value="" disabled>Select age</option>
           {AGE_OPTIONS.map((a) => (
-            <button
-              key={a}
-              type="button"
-              onClick={() => setAge(a)}
-              disabled={isGenerating}
-              className={`h-10 w-10 rounded-full text-sm font-semibold transition cursor-pointer ${
-                age === a
-                  ? "bg-violet-600 text-white shadow-md"
-                  : "bg-gray-100 text-gray-700 hover:bg-violet-100"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {a}
-            </button>
+            <option key={a} value={a}>
+              {a} years old
+            </option>
           ))}
-        </div>
-        {errors.age && <p className="mt-1 text-sm text-red-600">{errors.age}</p>}
+        </select>
+        {errors.age && <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.age}</p>}
       </div>
 
       {/* Theme / Moral */}
       <div>
-        <label htmlFor="theme" className="block text-sm font-semibold text-gray-700 mb-1">
-          Story Theme or Moral *
+        <label htmlFor="theme" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
+          Story Theme or Moral <span className="text-amber-500">*</span>
         </label>
         <input
           id="theme"
           type="text"
           value={theme}
           onChange={(e) => setTheme(e.target.value)}
-          placeholder="e.g., kindness, sharing, being brave, friendship"
+          placeholder="What should the story be about?"
           disabled={isGenerating}
-          className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 focus:outline-none transition disabled:opacity-50"
+          className={inputClass}
         />
-        {errors.theme && <p className="mt-1 text-sm text-red-600">{errors.theme}</p>}
+        {/* Theme suggestion chips */}
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {THEME_SUGGESTIONS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTheme(t)}
+              disabled={isGenerating}
+              className="text-xs px-3 py-1 rounded-full bg-[var(--color-chip-bg)] text-[var(--color-chip-text)] border border-[var(--color-chip-border)] hover:bg-[var(--color-chip-hover)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        {errors.theme && <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.theme}</p>}
       </div>
 
-      {/* Optional: Character and Setting side by side */}
+      {/* Optional: Character and Setting */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label htmlFor="character" className="block text-sm font-semibold text-gray-700 mb-1">
+          <label htmlFor="character" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
             Favorite Character
           </label>
           <input
@@ -119,11 +151,11 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
             onChange={(e) => setCharacter(e.target.value)}
             placeholder="e.g., a talking fox"
             disabled={isGenerating}
-            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 focus:outline-none transition disabled:opacity-50"
+            className={inputClass}
           />
         </div>
         <div>
-          <label htmlFor="setting" className="block text-sm font-semibold text-gray-700 mb-1">
+          <label htmlFor="setting" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
             Story Setting
           </label>
           <input
@@ -133,38 +165,38 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
             onChange={(e) => setSetting(e.target.value)}
             placeholder="e.g., an enchanted forest"
             disabled={isGenerating}
-            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 focus:outline-none transition disabled:opacity-50"
+            className={inputClass}
           />
         </div>
       </div>
 
       {/* Story Length */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Story Length</label>
+        <label className="block text-sm font-bold text-[var(--color-foreground)] mb-2">Story Length</label>
         <div className="flex gap-3">
           <button
             type="button"
             onClick={() => setLength("short")}
             disabled={isGenerating}
-            className={`flex-1 rounded-xl py-3 text-sm font-semibold transition cursor-pointer ${
+            className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all cursor-pointer ${
               length === "short"
-                ? "bg-violet-600 text-white shadow-md"
-                : "bg-gray-100 text-gray-700 hover:bg-violet-100"
+                ? "bg-violet-600 text-white shadow-lg shadow-violet-300/50 border-2 border-violet-600"
+                : "bg-[var(--color-unselected-bg)] text-[var(--color-unselected-text)] hover:bg-[var(--color-unselected-hover)] border-2 border-[var(--color-unselected-border)]"
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            Short (bedtime)
+            {"\u{1F319}"} Short (bedtime)
           </button>
           <button
             type="button"
             onClick={() => setLength("medium")}
             disabled={isGenerating}
-            className={`flex-1 rounded-xl py-3 text-sm font-semibold transition cursor-pointer ${
+            className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all cursor-pointer ${
               length === "medium"
-                ? "bg-violet-600 text-white shadow-md"
-                : "bg-gray-100 text-gray-700 hover:bg-violet-100"
+                ? "bg-violet-600 text-white shadow-lg shadow-violet-300/50 border-2 border-violet-600"
+                : "bg-[var(--color-unselected-bg)] text-[var(--color-unselected-text)] hover:bg-[var(--color-unselected-hover)] border-2 border-[var(--color-unselected-border)]"
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
-            Medium (read-along)
+            {"\u{1F4DA}"} Medium (read-along)
           </button>
         </div>
       </div>
@@ -173,18 +205,15 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
       <button
         type="submit"
         disabled={isGenerating}
-        className="w-full rounded-xl bg-violet-600 py-4 text-lg font-bold text-white hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 py-4 text-lg font-extrabold text-white hover:from-violet-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-violet-200/50 hover:shadow-xl hover:shadow-violet-300/50 active:scale-[0.98]"
       >
         {isGenerating ? (
           <span className="flex items-center justify-center gap-2">
-            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
+            <span className="animate-spin-slow inline-block">&#10024;</span>
             Creating your story...
           </span>
         ) : (
-          "Create Story"
+          <span>&#10024; Create Story</span>
         )}
       </button>
     </form>
