@@ -27,7 +27,8 @@
   --color-unselected-bg: #f5f3ff;
   --color-unselected-text: #6d28d9;
   --color-unselected-border: #e9d5ff;
-  --color-unselected-hover: #ede9fe;
+  --color-unselected-hover: #ddd6fe;
+  --color-unselected-hover-border: #c4b5fd;
   --color-muted: #9ca3af;
   --color-shadow: rgba(139, 92, 246, 0.15);
   --color-error-bg: #fef2f2;
@@ -62,7 +63,8 @@
   --color-unselected-bg: #1a1030;
   --color-unselected-text: #c4b5fd;
   --color-unselected-border: #3b2769;
-  --color-unselected-hover: #231545;
+  --color-unselected-hover: #2e1a55;
+  --color-unselected-hover-border: #6d28d9;
   --color-muted: #6b7280;
   --color-shadow: rgba(0, 0, 0, 0.3);
   --color-error-bg: #1a0505;
@@ -165,6 +167,27 @@
 .animate-content-reveal {
   opacity: 0;
   animation: contentReveal 0.5s ease-out 0.6s forwards;
+}
+
+
+/* Book cover animations */
+@keyframes coverReveal {
+  0%   { opacity: 0; transform: scale(0.96) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes coverExit {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.04) translateY(-12px); }
+}
+
+.animate-cover-reveal {
+  animation: coverReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-cover-exit {
+  animation: coverExit 0.4s cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
 }
 
 body {

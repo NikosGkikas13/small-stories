@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { storyFormSchema, type StoryFormData } from "@/lib/validators";
-import type { StoryLength } from "@/types/story";
+import type { StoryLength, StoryFormat } from "@/types/story";
 
 interface StoryFormProps {
   onSubmit: (data: StoryFormData) => void;
@@ -30,6 +30,7 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
   const [character, setCharacter] = useState("");
   const [setting, setSetting] = useState("");
   const [length, setLength] = useState<StoryLength>("short");
+  const [format, setFormat] = useState<StoryFormat>("story");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   function handleSubmit(e: React.FormEvent) {
@@ -43,6 +44,7 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
       character: character.trim() || undefined,
       setting: setting.trim() || undefined,
       length,
+      format,
     });
 
     if (!result.success) {
@@ -180,8 +182,8 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
             disabled={isGenerating}
             className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all cursor-pointer ${
               length === "short"
-                ? "bg-violet-600 text-white shadow-lg shadow-violet-300/50 border-2 border-violet-600"
-                : "bg-[var(--color-unselected-bg)] text-[var(--color-unselected-text)] hover:bg-[var(--color-unselected-hover)] border-2 border-[var(--color-unselected-border)]"
+                ? "bg-violet-600 text-white shadow-sm shadow-violet-300/20 border-2 border-violet-600"
+                : "bg-[var(--color-unselected-bg)] text-[var(--color-unselected-text)] hover:bg-[var(--color-unselected-hover)] hover:border-[var(--color-unselected-hover-border)] border-2 border-[var(--color-unselected-border)]"
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {"\u{1F319}"} Short (bedtime)
@@ -192,11 +194,42 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
             disabled={isGenerating}
             className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all cursor-pointer ${
               length === "medium"
-                ? "bg-violet-600 text-white shadow-lg shadow-violet-300/50 border-2 border-violet-600"
-                : "bg-[var(--color-unselected-bg)] text-[var(--color-unselected-text)] hover:bg-[var(--color-unselected-hover)] border-2 border-[var(--color-unselected-border)]"
+                ? "bg-violet-600 text-white shadow-sm shadow-violet-300/20 border-2 border-violet-600"
+                : "bg-[var(--color-unselected-bg)] text-[var(--color-unselected-text)] hover:bg-[var(--color-unselected-hover)] hover:border-[var(--color-unselected-hover-border)] border-2 border-[var(--color-unselected-border)]"
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {"\u{1F4DA}"} Medium (read-along)
+          </button>
+        </div>
+      </div>
+
+      {/* Format */}
+      <div>
+        <label className="block text-sm font-bold text-[var(--color-foreground)] mb-2">Format</label>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setFormat("story")}
+            disabled={isGenerating}
+            className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all cursor-pointer ${
+              format === "story"
+                ? "bg-violet-600 text-white shadow-sm shadow-violet-300/20 border-2 border-violet-600"
+                : "bg-[var(--color-unselected-bg)] text-[var(--color-unselected-text)] hover:bg-[var(--color-unselected-hover)] hover:border-[var(--color-unselected-hover-border)] border-2 border-[var(--color-unselected-border)]"
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {"\u{1F4D6}"} Story
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormat("poem")}
+            disabled={isGenerating}
+            className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all cursor-pointer ${
+              format === "poem"
+                ? "bg-violet-600 text-white shadow-sm shadow-violet-300/20 border-2 border-violet-600"
+                : "bg-[var(--color-unselected-bg)] text-[var(--color-unselected-text)] hover:bg-[var(--color-unselected-hover)] hover:border-[var(--color-unselected-hover-border)] border-2 border-[var(--color-unselected-border)]"
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {"\u{270D}\u{FE0F}"} Poem
           </button>
         </div>
       </div>
@@ -205,7 +238,7 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
       <button
         type="submit"
         disabled={isGenerating}
-        className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 py-4 text-lg font-extrabold text-white hover:from-violet-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-violet-200/50 hover:shadow-xl hover:shadow-violet-300/50 active:scale-[0.98]"
+        className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 py-4 text-lg font-extrabold text-white hover:from-violet-500 hover:to-purple-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm shadow-violet-300/20 hover:shadow-md hover:shadow-violet-300/20 active:scale-[0.98]"
       >
         {isGenerating ? (
           <span className="flex items-center justify-center gap-2">

@@ -21,6 +21,7 @@ export async function streamStory(
     system: systemPrompt,
     messages: [{ role: "user", content: userMessage }],
     stream: true,
+    temperature: 1.0, // Max allowed — more vivid, imaginative language
   });
 
   // If we reach here, the API accepted the request — wrap the event stream

@@ -40,44 +40,64 @@ function getAgeCalibration(age: number): string {
 - The story can explore more complex emotions like empathy, perseverance, and self-discovery`;
 }
 
-function getLengthInstruction(length: "short" | "medium"): string {
+function getLengthInstruction(length: "short" | "medium", format: "story" | "poem"): string {
+  if (format === "poem") {
+    if (length === "short") {
+      return "Write a short poem of 3-4 stanzas (roughly 12-16 lines). Keep it concise and rhythmic.";
+    }
+    return "Write a longer poem of 6-8 stanzas (roughly 24-32 lines). Develop the theme across stanzas.";
+  }
   if (length === "short") {
     return "Keep the story to 200-300 words. This is a quick bedtime story.";
   }
   return "Write a story of 400-600 words. This is a longer read-along story.";
 }
 
-export function buildSystemPrompt(age: number, length: "short" | "medium"): string {
-  return `You are a warm, imaginative children's storyteller who creates personalized short stories for children.
+export function buildSystemPrompt(age: number, length: "short" | "medium", format: "story" | "poem"): string {
+  const formatLabel = format === "poem" ? "poem" : "story";
+
+  const structureSection = format === "poem"
+    ? `POEM STRUCTURE:
+- Write in rhyming verse with a consistent rhythm and meter
+- Use stanzas of 4 lines each (quatrains work best for children)
+- The rhyme scheme should be simple (AABB or ABAB)
+- The child's name should appear naturally within the verses
+- Build toward a warm, uplifting ending that reinforces the theme
+- Each stanza should flow naturally into the next`
+    : `STORY STRUCTURE:
+- Begin with an engaging opening that introduces the main character and setting
+- Include a challenge, adventure, or moment of discovery in the middle that relates to the theme
+- End with a satisfying resolution that naturally reinforces the moral or theme
+- The child's name should appear as the protagonist, woven in naturally (not forced into every sentence)`;
+
+  return `You are a warm, imaginative children's ${format === "poem" ? "poet" : "storyteller"} who creates personalized ${formatLabel}s for children.
 
 TARGET AUDIENCE: A ${age}-year-old child.
 
 ${getAgeCalibration(age)}
 
-STORY STRUCTURE:
-- Begin with an engaging opening that introduces the main character and setting
-- Include a challenge, adventure, or moment of discovery in the middle that relates to the theme
-- End with a satisfying resolution that naturally reinforces the moral or theme
-- The child's name should appear as the protagonist, woven in naturally (not forced into every sentence)
+${structureSection}
 
 SAFETY RULES (non-negotiable):
 - No violence, danger, or scary elements
 - No exclusion, bullying, or negative social dynamics
 - No stereotypes based on gender, culture, or appearance
 - All characters are treated with kindness and respect
-- If the requested theme could lead to inappropriate content, gently reinterpret it as a positive, wholesome story
-- The story must always end on a hopeful, positive note
+- If the requested theme could lead to inappropriate content, gently reinterpret it as a positive, wholesome ${formatLabel}
+- The ${formatLabel} must always end on a hopeful, positive note
 
-LENGTH: ${getLengthInstruction(length)}
+LENGTH: ${getLengthInstruction(length, format)}
 
 OUTPUT FORMAT:
-- Write ONLY the story text — no title, no heading, no "# ...", no headers, no meta-commentary, no word count
-- Start directly with the first sentence of the story
-- Do not wrap the story in markdown formatting`;
+- First line must be exactly: TITLE: <a short, enchanting children's book title (3-7 words)>
+- Then a blank line
+- Then the ${formatLabel} text with no other headings, markdown, or meta-commentary
+- Do not wrap the ${formatLabel} in markdown formatting`;
 }
 
 export function buildUserMessage(data: StoryFormData): string {
-  const parts = [`Create a story for ${data.childName} about ${data.theme}.`];
+  const formatLabel = data.format === "poem" ? "poem" : "story";
+  const parts = [`Create a ${formatLabel} for ${data.childName} about ${data.theme}.`];
 
   if (data.character) {
     parts.push(`Include ${data.character} as a character in the story.`);
