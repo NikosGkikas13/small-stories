@@ -18,6 +18,8 @@ export const storyFormSchema = z.object({
   setting: z.string().max(100, "Setting must be 100 characters or less").optional(),
   length: z.enum(["short", "medium"]),
   format: z.enum(["story", "poem"]),
+  language: z.enum(["en", "el"]),
+  gender: z.enum(["boy", "girl"]),
 });
 
 export type StoryFormData = z.infer<typeof storyFormSchema>;

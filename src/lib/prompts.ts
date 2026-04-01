@@ -53,7 +53,12 @@ function getLengthInstruction(length: "short" | "medium", format: "story" | "poe
   return "Write a story of 400-600 words. This is a longer read-along story.";
 }
 
-export function buildSystemPrompt(age: number, length: "short" | "medium", format: "story" | "poem"): string {
+const languageNames: Record<string, string> = {
+  en: "English",
+  el: "Greek (Ελληνικά)",
+};
+
+export function buildSystemPrompt(age: number, length: "short" | "medium", format: "story" | "poem", language = "en"): string {
   const formatLabel = format === "poem" ? "poem" : "story";
 
   const structureSection = format === "poem"
@@ -87,6 +92,8 @@ SAFETY RULES (non-negotiable):
 - The ${formatLabel} must always end on a hopeful, positive note
 
 LENGTH: ${getLengthInstruction(length, format)}
+
+LANGUAGE: Write the entire ${formatLabel} in ${languageNames[language] ?? "English"}. The title must also be in this language.
 
 OUTPUT FORMAT:
 - First line must be exactly: TITLE: <a short, enchanting children's book title (3-7 words)>

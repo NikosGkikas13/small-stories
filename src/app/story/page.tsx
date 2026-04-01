@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SettingsPanel } from "@/components/settings-panel";
+import { VoiceRecorder } from "@/components/voice-recorder";
+import { useLocale } from "@/contexts/locale-context";
+import { t } from "@/lib/i18n";
 import type { StoryFormData } from "@/lib/validators";
 
 const WORDS_PER_PAGE = 120;
@@ -41,15 +44,45 @@ function splitIntoPages(text: string): string[] {
   return pages.length > 0 ? pages : [text];
 }
 
+// Set to true to skip API calls and use mock data for testing
+const USE_MOCK = true;
+
+// Default ElevenLabs voices by gender
+const VOICE_BOY = "qQfU5YYBVdiZOXa4SQhO";  // Sam – Gentle Bedtime Story Narrator
+const VOICE_GIRL = "8quEMRkSpwEaWBzHvTLv";
+
+const MOCK_STORY = `TITLE: The Brave Little Star
+
+Once upon a time, in a sky full of twinkling lights, there lived a tiny star named Lumi. Lumi was the smallest star in the whole night sky, and sometimes that made her feel a little sad.
+
+"I wish I were as big and bright as the moon," Lumi whispered one evening.
+
+The wise old owl who lived in the oak tree below heard her tiny voice. "Dear Lumi," he hooted gently, "being small doesn't mean you aren't important. Even the smallest light can guide someone home."
+
+That very night, a little girl named Emma was walking through the forest with her grandmother. The path was dark, and the tall trees blocked the moonlight. Emma felt scared and held her grandmother's hand tightly.
+
+Then Emma looked up and saw Lumi — a small but steady light peeking through the branches. "Look, Grandma! A little star is showing us the way!" Emma said with a smile.
+
+Lumi glowed with all her might, lighting the path through the trees. Step by step, Emma and her grandmother followed the little star until they reached their cozy cottage.
+
+"Thank you, little star!" Emma called out, waving goodnight.
+
+From that night on, Lumi never wished to be bigger. She knew that even the smallest light can make the biggest difference when someone needs it most.`;
+
+const MOCK_IMAGE = "https://placehold.co/1024x1024/7c3aed/white?text=Story+Cover";
+
 // Decorative ornaments for the cover
 const COVER_ORNAMENTS = ["✦", "✧", "⋆", "✦", "✧", "⋆", "✦", "✧"];
 
 export default function StoryPage() {
   const router = useRouter();
+  const { locale } = useLocale();
   const [rawText, setRawText] = useState("");
   const [isStreaming, setIsStreaming] = useState(true);
   const [isReading, setIsReading] = useState(false);
-  const [canSpeak, setCanSpeak] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const audioPauseable = useRef(false);
+  const activeVoiceRef = useRef<"default" | "cloned" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [childName, setChildName] = useState("");
   const [format, setFormat] = useState<"story" | "poem">("story");
@@ -59,6 +92,12 @@ export default function StoryPage() {
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [coverImageLoading, setCoverImageLoading] = useState(false);
   const imageRequested = useRef(false);
+
+  // Voice cloning
+  const [clonedVoiceId, setClonedVoiceId] = useState<string | null>(null);
+  const [gender, setGender] = useState<"boy" | "girl">("boy");
+  const [isVoiceLoading, setIsVoiceLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Cover state: "cover" → "exiting" → "open"
   const [coverState, setCoverState] = useState<"cover" | "exiting" | "open">("cover");
@@ -71,6 +110,11 @@ export default function StoryPage() {
   useEffect(() => {
     if (isStreaming || !title || imageRequested.current) return;
     imageRequested.current = true;
+
+    if (USE_MOCK) {
+      setCoverImageUrl(MOCK_IMAGE);
+      return;
+    }
 
     const stored = sessionStorage.getItem("storyFormData");
     if (!stored) return;
@@ -97,12 +141,22 @@ export default function StoryPage() {
   }, [isStreaming, title]);
 
   useEffect(() => {
-    setCanSpeak("speechSynthesis" in window);
+    const savedVoiceId = localStorage.getItem("clonedVoiceId");
+    if (savedVoiceId) setClonedVoiceId(savedVoiceId);
   }, []);
 
   useEffect(() => {
     if (hasStarted.current) return;
     hasStarted.current = true;
+
+    if (USE_MOCK) {
+      setChildName("Emma");
+      setFormat("story");
+      setGender("girl");
+      setRawText(MOCK_STORY);
+      setIsStreaming(false);
+      return;
+    }
 
     const stored = sessionStorage.getItem("storyFormData");
     if (!stored) { router.replace("/"); return; }
@@ -110,6 +164,7 @@ export default function StoryPage() {
     const data: StoryFormData = JSON.parse(stored);
     setChildName(data.childName);
     setFormat(data.format);
+    setGender(data.gender);
 
     async function generateStory() {
       try {
@@ -149,39 +204,120 @@ export default function StoryPage() {
     setTimeout(() => setCoverState("open"), 420);
   }, [coverState]);
 
-  const handleReadAloud = useCallback(() => {
-    if (!("speechSynthesis" in window)) return;
-    if (isReading) {
-      window.speechSynthesis.cancel();
+  async function playWithElevenLabs(voiceId: string, voiceType: "default" | "cloned") {
+    setIsVoiceLoading(true);
+    try {
+      const res = await fetch("/api/read-story", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: body, voiceId }),
+      });
+      if (!res.ok) throw new Error("TTS failed");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsReading(false);
+        setIsPaused(false);
+        audioPauseable.current = false;
+        activeVoiceRef.current = null;
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+      };
+      audio.onerror = () => {
+        setIsReading(false);
+        setIsPaused(false);
+        audioPauseable.current = false;
+        activeVoiceRef.current = null;
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+      };
+
+      audio.play().then(() => {
+        audioPauseable.current = true;
+        activeVoiceRef.current = voiceType;
+        setIsReading(true);
+        setIsVoiceLoading(false);
+      }).catch(() => {
+        setIsReading(false);
+        setIsVoiceLoading(false);
+      });
+    } catch {
       setIsReading(false);
+      setIsVoiceLoading(false);
+    }
+  }
+
+  function stopAudio() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setIsReading(false);
+    setIsPaused(false);
+    audioPauseable.current = false;
+    activeVoiceRef.current = null;
+  }
+
+  function handleVoiceButton(voiceType: "default" | "cloned") {
+    const voiceId = voiceType === "cloned"
+      ? clonedVoiceId!
+      : (gender === "girl" ? VOICE_GIRL : VOICE_BOY);
+
+    // Resume if paused with same voice
+    if (isPaused && audioRef.current && audioPauseable.current && activeVoiceRef.current === voiceType) {
+      audioRef.current.play().then(() => {
+        setIsReading(true);
+        setIsPaused(false);
+      }).catch(() => {
+        stopAudio();
+        playWithElevenLabs(voiceId, voiceType);
+      });
       return;
     }
-    const utterance = new SpeechSynthesisUtterance(body);
-    utterance.rate = 0.9;
-    utterance.pitch = 1.1;
-    utterance.onend = () => setIsReading(false);
-    utterance.onerror = () => setIsReading(false);
-    window.speechSynthesis.speak(utterance);
-    setIsReading(true);
-  }, [body, isReading]);
+
+    // Pause if playing with same voice
+    if (isReading && audioRef.current && activeVoiceRef.current === voiceType) {
+      audioRef.current.pause();
+      setIsReading(false);
+      setIsPaused(true);
+      return;
+    }
+
+    // Different voice or fresh start — stop current and start new
+    stopAudio();
+    playWithElevenLabs(voiceId, voiceType);
+  }
 
   const handleBack = useCallback(() => {
-    window.speechSynthesis?.cancel();
-    setIsReading(false);
+    stopAudio();
     router.push("/");
   }, [router]);
+
+  const handleVoiceCloned = useCallback((voiceId: string) => {
+    setClonedVoiceId(voiceId);
+  }, []);
+
+  const handleClearVoice = useCallback(() => {
+    stopAudio();
+    setClonedVoiceId(null);
+    localStorage.removeItem("clonedVoiceId");
+  }, []);
 
   // ── Loading ──────────────────────────────────────────────
   if (!rawText && isStreaming && !error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--color-background)]">
-        <div className="absolute top-4 right-4 z-10"><ThemeToggle /></div>
+        <div className="absolute top-4 right-4 z-10"><SettingsPanel /></div>
         <div className="text-center animate-fade-in-up">
           <span className="text-6xl animate-float inline-block">📖</span>
           <p className="mt-4 text-xl font-bold text-[var(--color-primary)]">
-            Creating a {format} for {childName}...
+            {format === "poem" ? t(locale, "creatingPoem") : t(locale, "creatingStory")} {childName}...
           </p>
-          <p className="mt-2 text-[var(--color-primary-light)]">Opening the book of imagination</p>
+          <p className="mt-2 text-[var(--color-primary-light)]">{t(locale, "openingBook")}</p>
         </div>
       </div>
     );
@@ -191,13 +327,13 @@ export default function StoryPage() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--color-background)] px-4">
-        <div className="absolute top-4 right-4 z-10"><ThemeToggle /></div>
+        <div className="absolute top-4 right-4 z-10"><SettingsPanel /></div>
         <div className="max-w-md w-full rounded-2xl bg-[var(--color-error-bg)] border-2 border-[var(--color-error-border)] p-6 text-center animate-fade-in-up">
           <p className="text-4xl mb-3">😔</p>
-          <p className="font-bold text-lg text-[var(--color-error-text)]">Oops!</p>
+          <p className="font-bold text-lg text-[var(--color-error-text)]">{t(locale, "errorOops")}</p>
           <p className="text-sm mt-1 text-[var(--color-error-text-light)]">{error}</p>
           <button onClick={handleBack} className="mt-4 rounded-full bg-red-600 px-6 py-3 text-white font-bold hover:bg-red-700 transition-all cursor-pointer">
-            Go Back
+            {t(locale, "errorBack")}
           </button>
         </div>
       </div>
@@ -211,7 +347,7 @@ export default function StoryPage() {
     const coverReady = !isStreaming && !!title && !coverImageLoading;
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--color-background)] px-4 py-8">
-        <div className="absolute top-4 right-4 z-10"><ThemeToggle /></div>
+        <div className="absolute top-4 right-4 z-10"><SettingsPanel /></div>
 
         <div
           className={`w-full max-w-sm ${coverState === "exiting" ? "animate-cover-exit" : "animate-cover-reveal"}`}
@@ -253,7 +389,7 @@ export default function StoryPage() {
 
               {/* Format badge */}
               <p className="text-purple-300/80 text-xs font-bold uppercase tracking-[0.25em] mb-6">
-                {format === "poem" ? "A poem" : "A story"} for
+                {format === "poem" ? t(locale, "poemFor") : t(locale, "storyFor")}
               </p>
 
               {/* Child's name */}
@@ -280,7 +416,7 @@ export default function StoryPage() {
                     {coverImageLoading ? (
                       <>
                         <div className="w-10 h-10 rounded-full border-4 border-purple-300/30 border-t-purple-300 animate-spin" />
-                        <p className="text-purple-300/60 text-xs font-medium">Painting the cover…</p>
+                        <p className="text-purple-300/60 text-xs font-medium">{t(locale, "paintingCover")}</p>
                       </>
                     ) : (
                       <span className="text-6xl animate-float inline-block">🎨</span>
@@ -336,10 +472,10 @@ export default function StoryPage() {
                 }}
               >
                 {!isStreaming && title && coverImageLoading
-                  ? "🎨  Painting the cover…"
+                  ? t(locale, "paintingCover")
                   : coverReady
-                  ? "📖  Open Book"
-                  : "Writing your story…"}
+                  ? t(locale, "openBook")
+                  : t(locale, "writingStory")}
               </button>
             </div>
 
@@ -359,7 +495,7 @@ export default function StoryPage() {
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
               <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            New Story
+            {t(locale, "newStory")}
           </button>
         </div>
       </div>
@@ -369,7 +505,7 @@ export default function StoryPage() {
   // ── Story pages ──────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[var(--color-background)] px-4 py-8 sm:py-12">
-      <div className="absolute top-4 right-4 z-10"><ThemeToggle /></div>
+      <div className="absolute top-4 right-4 z-10"><SettingsPanel /></div>
 
       <div className="max-w-2xl mx-auto mb-6">
         <button
@@ -387,7 +523,7 @@ export default function StoryPage() {
         {/* Title header */}
         <div className="text-center mb-2 animate-content-reveal">
           <p className="text-sm font-bold text-[var(--color-primary-light)] uppercase tracking-widest mb-1">
-            A {format} for {childName}
+            {format === "poem" ? t(locale, "poemFor") : t(locale, "storyFor")} {childName}
           </p>
           {title && (
             <h1 className="text-2xl sm:text-3xl font-bold text-[var(--color-foreground)] mt-2">
@@ -431,7 +567,7 @@ export default function StoryPage() {
                 className="text-center mt-5 text-base font-bold tracking-[0.2em] italic select-none"
                 style={{ color: "var(--color-card-accent)" }}
               >
-                ~ The End ~
+                {t(locale, "theEnd")}
               </p>
             )}
 
@@ -454,14 +590,14 @@ export default function StoryPage() {
               <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
                 <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Prev
+              {t(locale, "prev")}
             </button>
             <button
               onClick={() => setCurrentPage((p) => p + 1)}
               disabled={currentPage === totalPages - 1}
               className="flex items-center gap-1.5 rounded-full px-5 py-2.5 font-bold transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed bg-[var(--color-unselected-bg)] text-[var(--color-unselected-text)] border-2 border-[var(--color-unselected-border)] hover:bg-[var(--color-unselected-hover)] hover:border-[var(--color-unselected-hover-border)]"
             >
-              Next
+              {t(locale, "next")}
               <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
                 <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -469,33 +605,70 @@ export default function StoryPage() {
           </div>
         )}
 
+        {/* Voice recorder */}
+        {!isStreaming && body && (
+          <div className="mt-6 animate-fade-in-up">
+            <VoiceRecorder
+              onVoiceCloned={handleVoiceCloned}
+              existingVoiceId={clonedVoiceId}
+              onClearVoice={handleClearVoice}
+            />
+          </div>
+        )}
+
         {/* Action buttons */}
         {!isStreaming && body && (
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 animate-fade-in-up">
-            {canSpeak && (
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 animate-fade-in-up">
+            {/* Default voice button */}
+            <button
+              onClick={() => handleVoiceButton("default")}
+              disabled={isVoiceLoading}
+              className={`rounded-full px-6 py-3 font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                (isReading || isPaused) && activeVoiceRef.current === "default"
+                  ? "bg-[var(--color-error-bg)] text-[var(--color-error-text-light)] border-2 border-[var(--color-error-border)]"
+                  : "bg-[var(--color-read-bg)] text-[var(--color-read-text)] border-2 border-[var(--color-read-border)] hover:bg-[var(--color-read-hover)]"
+              }`}
+            >
+              {isVoiceLoading && activeVoiceRef.current === "default"
+                ? t(locale, "voiceLoading")
+                : isReading && activeVoiceRef.current === "default"
+                ? t(locale, "pauseReading")
+                : isPaused && activeVoiceRef.current === "default"
+                ? t(locale, "resumeReading")
+                : t(locale, "readAloud")}
+            </button>
+            {/* Cloned voice button */}
+            {clonedVoiceId && (
               <button
-                onClick={handleReadAloud}
-                className={`rounded-full px-6 py-3 font-bold transition-all cursor-pointer ${
-                  isReading
+                onClick={() => handleVoiceButton("cloned")}
+                disabled={isVoiceLoading}
+                className={`rounded-full px-6 py-3 font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                  (isReading || isPaused) && activeVoiceRef.current === "cloned"
                     ? "bg-[var(--color-error-bg)] text-[var(--color-error-text-light)] border-2 border-[var(--color-error-border)]"
                     : "bg-[var(--color-read-bg)] text-[var(--color-read-text)] border-2 border-[var(--color-read-border)] hover:bg-[var(--color-read-hover)]"
                 }`}
               >
-                {isReading ? "⏹ Stop Reading" : "🔊 Read Aloud"}
+                {isVoiceLoading && activeVoiceRef.current === "cloned"
+                  ? t(locale, "voiceLoading")
+                  : isReading && activeVoiceRef.current === "cloned"
+                  ? t(locale, "pauseReading")
+                  : isPaused && activeVoiceRef.current === "cloned"
+                  ? t(locale, "resumeReading")
+                  : t(locale, "voiceReadAloud")}
               </button>
             )}
             <button
               onClick={handleBack}
               className="rounded-full bg-violet-600 px-6 py-3 text-white font-bold hover:bg-violet-500 transition-all cursor-pointer"
             >
-              ✨ Create Another Story
+              {t(locale, "createAnother")}
             </button>
           </div>
         )}
       </div>
 
       <footer className="max-w-2xl mx-auto mt-12 text-center text-sm text-[var(--color-muted)]">
-        Stories generated by AI. Always review content before sharing with children.
+        {t(locale, "footer")}
       </footer>
     </div>
   );

@@ -190,6 +190,12 @@
   pointer-events: none;
 }
 
+/* Voice recorder bar animation */
+@keyframes voiceBar {
+  0% { height: 6px; }
+  100% { height: 28px; }
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);

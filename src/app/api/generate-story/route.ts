@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = result.data;
-    const systemPrompt = buildSystemPrompt(data.age, data.length, data.format);
+    const systemPrompt = buildSystemPrompt(data.age, data.length, data.format, data.language);
     const userMessage = buildUserMessage(data);
     const maxTokens = data.length === "short" ? 1024 : 2048;
 
