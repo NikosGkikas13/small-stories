@@ -37,6 +37,7 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
   const [language, setLanguage] = useState<Locale>(locale);
   const [gender, setGender] = useState<"boy" | "girl">("boy");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showMore, setShowMore] = useState(false);
 
   // Keep story language in sync when app language changes
   useEffect(() => {
@@ -103,25 +104,39 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
         {errors.childName && <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.childName}</p>}
       </div>
 
-      {/* Age */}
-      <div>
-        <label htmlFor="age" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
-          {t(locale, "formAge")} <span className="text-amber-500">*</span>
-        </label>
-        <select
-          id="age"
-          value={age ?? ""}
-          onChange={(e) => setAge(e.target.value ? Number(e.target.value) : null)}
-          disabled={isGenerating}
-          className={`${inputClass} font-bold appearance-none cursor-pointer ${age ? "" : "text-[var(--color-muted)]"}`}
-          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237c3aed' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 16px center" }}
-        >
-          <option value="" disabled>{t(locale, "formAgeSelect")}</option>
-          {AGE_OPTIONS.map((a) => (
-            <option key={a} value={a}>{a} {t(locale, "formAgeYears")}</option>
-          ))}
-        </select>
-        {errors.age && <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.age}</p>}
+      {/* Age + Gender row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="age" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
+            {t(locale, "formAge")} <span className="text-amber-500">*</span>
+          </label>
+          <select
+            id="age"
+            value={age ?? ""}
+            onChange={(e) => setAge(e.target.value ? Number(e.target.value) : null)}
+            disabled={isGenerating}
+            className={`${inputClass} font-bold appearance-none cursor-pointer ${age ? "" : "text-[var(--color-muted)]"}`}
+            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237c3aed' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 16px center" }}
+          >
+            <option value="" disabled>{t(locale, "formAgeSelect")}</option>
+            {AGE_OPTIONS.map((a) => (
+              <option key={a} value={a}>{a} {t(locale, "formAgeYears")}</option>
+            ))}
+          </select>
+          {errors.age && <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.age}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">{t(locale, "formGender")}</label>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => setGender("boy")} disabled={isGenerating} className={toggleBtn(gender === "boy")}>
+              {t(locale, "formGenderBoy")}
+            </button>
+            <button type="button" onClick={() => setGender("girl")} disabled={isGenerating} className={toggleBtn(gender === "girl")}>
+              {t(locale, "formGenderGirl")}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Theme */}
@@ -154,72 +169,83 @@ export function StoryForm({ onSubmit, isGenerating }: StoryFormProps) {
         {errors.theme && <p className="mt-1.5 text-sm text-red-500 font-medium">{errors.theme}</p>}
       </div>
 
-      {/* Character + Setting */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="character" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
-            {t(locale, "formCharacter")}
-          </label>
-          <input id="character" type="text" value={character} onChange={(e) => setCharacter(e.target.value)} placeholder={t(locale, "formCharacterPlaceholder")} disabled={isGenerating} className={inputClass} />
-        </div>
-        <div>
-          <label htmlFor="setting" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
-            {t(locale, "formSetting")}
-          </label>
-          <input id="setting" type="text" value={setting} onChange={(e) => setSetting(e.target.value)} placeholder={t(locale, "formSettingPlaceholder")} disabled={isGenerating} className={inputClass} />
-        </div>
-      </div>
-
-      {/* Story Length */}
+      {/* Collapsible More Options */}
       <div>
-        <label className="block text-sm font-bold text-[var(--color-foreground)] mb-2">{t(locale, "formLength")}</label>
-        <div className="flex gap-3">
-          <button type="button" onClick={() => setLength("short")} disabled={isGenerating} className={toggleBtn(length === "short")}>
-            🌙 {t(locale, "formLengthShort")}
-          </button>
-          <button type="button" onClick={() => setLength("medium")} disabled={isGenerating} className={toggleBtn(length === "medium")}>
-            📚 {t(locale, "formLengthMedium")}
-          </button>
-        </div>
-      </div>
+        <button
+          type="button"
+          onClick={() => setShowMore((prev) => !prev)}
+          className="flex items-center gap-2 text-sm font-bold text-[var(--color-primary)] hover:text-[var(--color-primary-light)] transition-colors cursor-pointer"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            className={`transition-transform ${showMore ? "rotate-90" : ""}`}
+          >
+            <path d="M4 2L8 6L4 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {t(locale, "formMoreOptions")}
+        </button>
 
-      {/* Format */}
-      <div>
-        <label className="block text-sm font-bold text-[var(--color-foreground)] mb-2">{t(locale, "formFormat")}</label>
-        <div className="flex gap-3">
-          <button type="button" onClick={() => setFormat("story")} disabled={isGenerating} className={toggleBtn(format === "story")}>
-            📖 {t(locale, "formFormatStory")}
-          </button>
-          <button type="button" onClick={() => setFormat("poem")} disabled={isGenerating} className={toggleBtn(format === "poem")}>
-            ✍️ {t(locale, "formFormatPoem")}
-          </button>
-        </div>
-      </div>
+        {showMore && (
+          <div className="mt-4 space-y-5 animate-fade-in-up">
+            {/* Character + Setting */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="character" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
+                  {t(locale, "formCharacter")}
+                </label>
+                <input id="character" type="text" value={character} onChange={(e) => setCharacter(e.target.value)} placeholder={t(locale, "formCharacterPlaceholder")} disabled={isGenerating} className={inputClass} />
+              </div>
+              <div>
+                <label htmlFor="setting" className="block text-sm font-bold text-[var(--color-foreground)] mb-1.5">
+                  {t(locale, "formSetting")}
+                </label>
+                <input id="setting" type="text" value={setting} onChange={(e) => setSetting(e.target.value)} placeholder={t(locale, "formSettingPlaceholder")} disabled={isGenerating} className={inputClass} />
+              </div>
+            </div>
 
-      {/* Story Language */}
-      <div>
-        <label className="block text-sm font-bold text-[var(--color-foreground)] mb-2">{t(locale, "formStoryLanguage")}</label>
-        <div className="flex gap-3">
-          <button type="button" onClick={() => setLanguage("en")} disabled={isGenerating} className={toggleBtn(language === "en")}>
-            🇬🇧 English
-          </button>
-          <button type="button" onClick={() => setLanguage("el")} disabled={isGenerating} className={toggleBtn(language === "el")}>
-            🇬🇷 Ελληνικά
-          </button>
-        </div>
-      </div>
+            {/* Story Length */}
+            <div>
+              <label className="block text-sm font-bold text-[var(--color-foreground)] mb-2">{t(locale, "formLength")}</label>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setLength("short")} disabled={isGenerating} className={toggleBtn(length === "short")}>
+                  🌙 {t(locale, "formLengthShort")}
+                </button>
+                <button type="button" onClick={() => setLength("medium")} disabled={isGenerating} className={toggleBtn(length === "medium")}>
+                  📚 {t(locale, "formLengthMedium")}
+                </button>
+              </div>
+            </div>
 
-      {/* Child's Gender */}
-      <div>
-        <label className="block text-sm font-bold text-[var(--color-foreground)] mb-2">{t(locale, "formGender")}</label>
-        <div className="flex gap-3">
-          <button type="button" onClick={() => setGender("boy")} disabled={isGenerating} className={toggleBtn(gender === "boy")}>
-            {t(locale, "formGenderBoy")}
-          </button>
-          <button type="button" onClick={() => setGender("girl")} disabled={isGenerating} className={toggleBtn(gender === "girl")}>
-            {t(locale, "formGenderGirl")}
-          </button>
-        </div>
+            {/* Format */}
+            <div>
+              <label className="block text-sm font-bold text-[var(--color-foreground)] mb-2">{t(locale, "formFormat")}</label>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setFormat("story")} disabled={isGenerating} className={toggleBtn(format === "story")}>
+                  📖 {t(locale, "formFormatStory")}
+                </button>
+                <button type="button" onClick={() => setFormat("poem")} disabled={isGenerating} className={toggleBtn(format === "poem")}>
+                  ✍️ {t(locale, "formFormatPoem")}
+                </button>
+              </div>
+            </div>
+
+            {/* Story Language */}
+            <div>
+              <label className="block text-sm font-bold text-[var(--color-foreground)] mb-2">{t(locale, "formStoryLanguage")}</label>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setLanguage("en")} disabled={isGenerating} className={toggleBtn(language === "en")}>
+                  🇬🇧 English
+                </button>
+                <button type="button" onClick={() => setLanguage("el")} disabled={isGenerating} className={toggleBtn(language === "el")}>
+                  🇬🇷 Ελληνικά
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Submit */}

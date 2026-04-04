@@ -33,6 +33,7 @@ const translations = {
     formGender: "Child's Gender",
     formGenderBoy: "👦 Boy",
     formGenderGirl: "👧 Girl",
+    formMoreOptions: "More Options",
     formSubmit: "✨ Create Story",
     formSubmitting: "Creating…",
 
@@ -123,6 +124,7 @@ const translations = {
     formGender: "Φύλο Παιδιού",
     formGenderBoy: "👦 Αγόρι",
     formGenderGirl: "👧 Κορίτσι",
+    formMoreOptions: "Περισσότερες Επιλογές",
     formSubmit: "✨ Δημιουργία Ιστορίας",
     formSubmitting: "Δημιουργία…",
 
