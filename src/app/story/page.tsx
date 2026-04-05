@@ -9,6 +9,7 @@ import { t } from "@/lib/i18n";
 import type { StoryFormData } from "@/lib/validators";
 
 const WORDS_PER_PAGE = 120;
+const SAVED_KEY = "storySavedId"; // tracks if this story was already persisted
 
 function parseStory(raw: string): { title: string; body: string } {
   const match = raw.match(/^TITLE:\s*(.+?)\n\n([\s\S]*)$/);
@@ -44,8 +45,7 @@ function splitIntoPages(text: string): string[] {
   return pages.length > 0 ? pages : [text];
 }
 
-// Set to true to skip API calls and use mock data for testing
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 // Default ElevenLabs voices by gender
 const VOICE_BOY = "qQfU5YYBVdiZOXa4SQhO";  // Sam – Gentle Bedtime Story Narrator
@@ -97,10 +97,16 @@ export default function StoryPage() {
   const [clonedVoiceId, setClonedVoiceId] = useState<string | null>(null);
   const [gender, setGender] = useState<"boy" | "girl">("boy");
   const [isVoiceLoading, setIsVoiceLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Cover state: "cover" → "exiting" → "open"
   const [coverState, setCoverState] = useState<"cover" | "exiting" | "open">("cover");
+
+  // Saved-story mode (re-reading from history)
+  const [isSavedView, setIsSavedView] = useState(false);
+  const savedStoryPersisted = useRef(false);
+  const [savedStoryId, setSavedStoryId] = useState<string | null>(null);
 
   const { title, body } = useMemo(() => parseStory(rawText), [rawText]);
   const pages = useMemo(() => splitIntoPages(body), [body]);
@@ -108,7 +114,7 @@ export default function StoryPage() {
 
   // Fetch cover image once story is done streaming and we have a title
   useEffect(() => {
-    if (isStreaming || !title || imageRequested.current) return;
+    if (isStreaming || !title || imageRequested.current || isSavedView) return;
     imageRequested.current = true;
 
     if (USE_MOCK) {
@@ -121,6 +127,7 @@ export default function StoryPage() {
     const data: StoryFormData = JSON.parse(stored);
 
     setCoverImageLoading(true);
+    console.log("[cover] Requesting image generation...");
     fetch("/api/generate-image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -134,15 +141,86 @@ export default function StoryPage() {
     })
       .then((r) => r.json())
       .then((json) => {
+        console.log("[cover] Response:", json);
         if (json.url) setCoverImageUrl(json.url);
+        else console.warn("[cover] No URL in response:", json);
       })
-      .catch(() => {/* silently skip image on error */})
+      .catch((err) => { console.error("[cover] Fetch failed:", err); })
       .finally(() => setCoverImageLoading(false));
-  }, [isStreaming, title]);
+  }, [isStreaming, title, isSavedView]);
+
+  // Step 1: Save story text to DB as soon as streaming finishes
+  useEffect(() => {
+    if (isStreaming || !title || !body || isSavedView || savedStoryPersisted.current || USE_MOCK) return;
+    savedStoryPersisted.current = true;
+
+    const stored = sessionStorage.getItem("storyFormData");
+    if (!stored) return;
+    const formData = JSON.parse(stored);
+
+    fetch("/api/stories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title,
+        content: body,
+        cover_image_url: null,
+        child_name: formData.childName,
+        age: formData.age,
+        theme: formData.theme,
+        character: formData.character || null,
+        setting: formData.setting || null,
+        length: formData.length,
+        format: formData.format,
+        language: formData.language,
+        gender: formData.gender,
+      }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to save");
+        return r.json();
+      })
+      .then((data) => { if (data.id) setSavedStoryId(data.id); })
+      .catch(() => { setSaveError("Story couldn't be saved. You can still read it here."); });
+  }, [isStreaming, title, body, isSavedView]);
+
+  // Step 2: Once cover image is ready, PATCH the saved story with the URL
+  useEffect(() => {
+    if (!coverImageUrl || !savedStoryId || isSavedView || USE_MOCK) return;
+
+    fetch(`/api/stories/${savedStoryId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cover_image_url: coverImageUrl }),
+    }).catch(() => {});
+  }, [coverImageUrl, savedStoryId, isSavedView]);
 
   useEffect(() => {
     const savedVoiceId = localStorage.getItem("clonedVoiceId");
     if (savedVoiceId) setClonedVoiceId(savedVoiceId);
+  }, []);
+
+  // Handle re-reading a saved story from history
+  useEffect(() => {
+    if (hasStarted.current) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("saved") === "true") {
+      const savedRaw = sessionStorage.getItem("savedStory");
+      if (savedRaw) {
+        hasStarted.current = true;
+        const saved = JSON.parse(savedRaw);
+        setChildName(saved.childName);
+        setFormat(saved.format);
+        setGender(saved.gender);
+        setRawText(`TITLE: ${saved.title}\n\n${saved.content}`);
+        if (saved.coverImageUrl) setCoverImageUrl(saved.coverImageUrl);
+        setIsStreaming(false);
+        setIsSavedView(true);
+        sessionStorage.removeItem("savedStory");
+        return;
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -531,6 +609,13 @@ export default function StoryPage() {
             </h1>
           )}
         </div>
+
+        {/* Save error banner */}
+        {saveError && (
+          <div className="mt-4 rounded-xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3 text-sm font-medium text-amber-700 dark:text-amber-400 text-center animate-fade-in-up">
+            {saveError}
+          </div>
+        )}
 
         {/* Story card */}
         <div className="animate-content-reveal mt-6">

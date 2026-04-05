@@ -1,10 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const openai = new OpenAI();
 
+function createServiceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
+async function uploadToStorage(imageBuffer: ArrayBuffer): Promise<string | null> {
+  try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.warn("SUPABASE_SERVICE_ROLE_KEY not set — skipping storage upload");
+      return null;
+    }
+
+    const supabase = createServiceClient();
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("story-covers")
+      .upload(fileName, imageBuffer, {
+        contentType: "image/png",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Supabase Storage upload failed:", uploadError.message);
+      return null;
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("story-covers").getPublicUrl(fileName);
+
+    console.log("Image uploaded to Supabase Storage:", publicUrl);
+    return publicUrl;
+  } catch (err) {
+    console.error("Storage upload error:", err);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const limited = await checkRateLimit("image");
+    if (limited) return limited;
+
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { error: "Image generation is not configured." },
@@ -37,9 +83,24 @@ export async function POST(request: NextRequest) {
       style: "vivid",
     });
 
-    const url = response.data?.[0]?.url;
-    if (!url) throw new Error("No image URL returned");
+    const tempUrl = response.data?.[0]?.url;
+    if (!tempUrl) throw new Error("No image URL returned from DALL-E");
 
+    // Download the image from DALL-E (URL is temporary, expires in ~1 hour)
+    const imageResponse = await fetch(tempUrl);
+    if (!imageResponse.ok) {
+      console.error("Failed to download DALL-E image, using temp URL");
+      return NextResponse.json({ url: tempUrl });
+    }
+
+    const imageBuffer = await imageResponse.arrayBuffer();
+
+    // Try to upload to Supabase Storage for a permanent URL
+    const permanentUrl = await uploadToStorage(imageBuffer);
+
+    // Return permanent URL if upload worked, otherwise fall back to temp DALL-E URL
+    const url = permanentUrl || tempUrl;
+    console.log("Returning image URL:", url.substring(0, 80) + "...");
     return NextResponse.json({ url });
   } catch (error) {
     console.error("Image generation error:", error);

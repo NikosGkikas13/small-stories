@@ -3,16 +3,38 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocale } from "@/contexts/locale-context";
 import { t } from "@/lib/i18n";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export function SettingsPanel() {
   const { locale, setLocale } = useLocale();
   const [open, setOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains("dark"));
   }, []);
+
+  // Fetch current user
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserEmail(user?.email ?? null);
+    });
+  }, []);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    sessionStorage.clear();
+    router.push("/login");
+    router.refresh();
+  }
 
   // Close on outside click
   useEffect(() => {
@@ -115,6 +137,23 @@ export function SettingsPanel() {
                 </button>
               </div>
             </div>
+
+            {/* Account */}
+            {userEmail && (
+              <div className="mt-5 pt-5 border-t-2 border-[var(--color-surface-border)]">
+                <p className="text-xs font-bold text-[var(--color-foreground)] mb-2.5 opacity-60 uppercase tracking-wider">
+                  Account
+                </p>
+                <p className="text-sm text-[var(--color-muted)] mb-3 truncate">{userEmail}</p>
+                <button
+                  onClick={handleSignOut}
+                  disabled={signingOut}
+                  className="w-full rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-100 hover:border-red-400 transition-all cursor-pointer disabled:opacity-50 dark:bg-red-950/30 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/50"
+                >
+                  {signingOut ? "Signing out..." : "Sign out"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

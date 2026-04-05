@@ -1,5 +1,6 @@
 "use client";
 
+import { StoryGenerator } from "@/components/story-generator";
 import { SettingsPanel } from "@/components/settings-panel";
 import { useLocale } from "@/contexts/locale-context";
 import { t } from "@/lib/i18n";
@@ -17,7 +18,7 @@ function Stars() {
   );
 }
 
-export default function Home() {
+export default function CreatePage() {
   const { locale } = useLocale();
 
   return (
@@ -26,6 +27,17 @@ export default function Home() {
         <Stars />
         <div className="absolute top-4 right-4 sm:right-6 z-10">
           <SettingsPanel />
+        </div>
+        <div className="absolute top-4 left-4 sm:left-6 z-10">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 w-10 h-10 justify-center rounded-full bg-[var(--color-surface)] border border-[var(--color-surface-border)] text-[var(--color-primary)] hover:bg-[var(--color-unselected-hover)] transition-all"
+            aria-label="Back"
+          >
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Link>
         </div>
         <div className="text-center">
           <div className="animate-float inline-block mb-2">
@@ -40,36 +52,8 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-md px-4 sm:px-6 pb-16">
-        <div className="flex flex-col gap-4 mt-4">
-          {/* Create new story */}
-          <Link
-            href="/create"
-            className="group relative rounded-3xl border-2 border-[var(--color-surface-border)] bg-[var(--color-surface)] p-8 text-center transition-all hover:border-violet-400/50 hover:shadow-xl hover:shadow-violet-200/20 hover:scale-[1.02]"
-          >
-            <span className="text-5xl inline-block mb-4 group-hover:animate-float">✨</span>
-            <h2 className="text-xl font-extrabold text-[var(--color-foreground)]">
-              Create New Story
-            </h2>
-            <p className="mt-2 text-sm text-[var(--color-muted)] font-medium">
-              A brand new adventure awaits
-            </p>
-          </Link>
-
-          {/* My stories */}
-          <Link
-            href="/my-stories"
-            className="group relative rounded-3xl border-2 border-[var(--color-surface-border)] bg-[var(--color-surface)] p-8 text-center transition-all hover:border-amber-400/50 hover:shadow-xl hover:shadow-amber-200/20 hover:scale-[1.02]"
-          >
-            <span className="text-5xl inline-block mb-4 group-hover:animate-float">📚</span>
-            <h2 className="text-xl font-extrabold text-[var(--color-foreground)]">
-              My Stories
-            </h2>
-            <p className="mt-2 text-sm text-[var(--color-muted)] font-medium">
-              Re-read and listen to your collection
-            </p>
-          </Link>
-        </div>
+      <main className="flex-1 w-full max-w-2xl px-4 sm:px-6 pb-16">
+        <StoryGenerator />
       </main>
 
       <footer className="w-full py-6 text-center text-sm text-[var(--color-muted)]">

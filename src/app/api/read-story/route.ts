@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = await checkRateLimit("tts");
+    if (limited) return limited;
+
     const apiKey = process.env.ELEVEN_LABS_API_KEY;
     if (!apiKey) {
       return NextResponse.json(

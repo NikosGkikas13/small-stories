@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { storyFormSchema } from "@/lib/validators";
 import { buildSystemPrompt, buildUserMessage } from "@/lib/prompts";
 import { streamStory } from "@/lib/anthropic";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = await checkRateLimit("generate");
+    if (limited) return limited;
+
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json(
         { error: "Story generation is not configured. Please set up an API key." },
