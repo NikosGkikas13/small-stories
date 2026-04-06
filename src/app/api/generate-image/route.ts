@@ -3,7 +3,9 @@ import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-const openai = new OpenAI();
+function getOpenAIClient() {
+  return new OpenAI();
+}
 
 function createServiceClient() {
   return createClient(
@@ -74,6 +76,7 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .join(" ");
 
+    const openai = getOpenAIClient();
     const response = await openai.images.generate({
       model: "dall-e-3",
       prompt,
